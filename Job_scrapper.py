@@ -10,6 +10,8 @@ from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions as EC
 from selenium.common.exceptions import TimeoutException
+import tempfile
+import os
 
 # Configuration
 PLATFORMS = {
@@ -29,8 +31,13 @@ VERTICALS = {
 def init_browser():
     chrome_options = Options()
     chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox") # Added --no-sandbox
+    chrome_options.add_argument("--disable-dev-shm-usage") # Added --disable-dev-shm-usage
     chrome_options.add_argument("--disable-gpu")
     chrome_options.add_argument("--window-size=1920x1080")
+    # Create a temporary directory for user data
+    user_data_dir = tempfile.mkdtemp()
+    chrome_options.add_argument(f"--user-data-dir={user_data_dir}")
     return webdriver.Chrome(options=chrome_options)
 
 def get_time_window():
@@ -107,12 +114,12 @@ def run_scraping_job():
     current_date = datetime.now().strftime("%Y-%m-%d")
     time_window = get_time_window()
     browser = init_browser()
-    
+
     print(f"\n{'='*50}")
     print(f"Starting scraping job at {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}")
     print(f"Time window: {'72 hours (Fri-Sun)' if time_window == 'r259200' else '24 hours'}")
     print(f"{'='*50}\n")
-    
+
     for vertical, roles in VERTICALS.items():
         for role in roles:
             # LinkedIn
@@ -122,7 +129,7 @@ def run_scraping_job():
                 title, company, location, date = job
                 state = location.split(",")[-1].strip() if "," in location else location
                 all_data.append([title, vertical, state, "LinkedIn", date, "Contract", current_date])
-            
+
             # Monster
             print(f"Scraping {role} in {vertical} from Monster...")
             monster_jobs = scrape_monster(role, time_window, browser)
@@ -130,7 +137,7 @@ def run_scraping_job():
                 title, company, location, date = job
                 state = location.split(",")[-1].strip() if "," in location else location
                 all_data.append([title, vertical, state, "Monster", date, "Contract", current_date])
-            
+
             # Dice
             print(f"Scraping {role} in {vertical} from Dice...")
             dice_jobs = scrape_dice(role, time_window, browser)
@@ -138,22 +145,22 @@ def run_scraping_job():
                 title, company, location, date = job
                 state = location.split(",")[-1].strip() if "," in location else location
                 all_data.append([title, vertical, state, "Dice", date, "Contract", current_date])
-            
+
             time.sleep(5)  # Respectful delay between requests
-    
+
     browser.quit()  # Close browser after each job
-    
+
     # Create DataFrame
     df = pd.DataFrame(all_data, columns=[
-        "Role", 
-        "Vertical/Industry", 
-        "State", 
-        "Platform", 
-        "Job Posting Date", 
+        "Role",
+        "Vertical/Industry",
+        "State",
+        "Platform",
+        "Job Posting Date",
         "Contract Duration",
         "Capture Date"
     ])
-    
+
     # Save to Excel with timestamp
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     filename = f"Job_Postings_{timestamp}.xlsx"
@@ -166,17 +173,17 @@ def run_scraping_job():
 def schedule_jobs():
     # Schedule Monday job (72-hour window)
     schedule.every().monday.at("09:00").do(run_scraping_job)
-    
+
     # Schedule Tuesday-Friday jobs (24-hour window)
     schedule.every().tuesday.at("09:00").do(run_scraping_job)
     schedule.every().wednesday.at("09:00").do(run_scraping_job)
     schedule.every().thursday.at("09:00").do(run_scraping_job)
     schedule.every().friday.at("09:00").do(run_scraping_job)
-    
+
     print("Scheduler initialized. Next runs scheduled for:")
     for job in schedule.get_jobs():
         print(f"- {job.next_run.strftime('%A, %Y-%m-%d %H:%M:%S')}")
-    
+
     # Continuous scheduler loop
     while True:
         schedule.run_pending()
@@ -184,7 +191,7 @@ def schedule_jobs():
 
 if __name__ == "__main__":
     # Run immediately for testing (optional)
-    # run_scraping_job()
-    
+    run_scraping_job()
+
     # Start the scheduler
-    schedule_jobs()
+    # schedule_jobs()
