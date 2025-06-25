@@ -127,15 +127,7 @@ This project is an automated job scraping tool that extracts contract job opport
 
 ---
 
-## 🤝 Contributing
 
-Contributions are welcome! Please fork the repository, create a feature branch, and submit a pull request.
-
----
-
-## 📄 License
-
-This project is licensed under the MIT License.
 
 ---
 
